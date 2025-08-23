@@ -27,19 +27,11 @@ This repository provides a system for maintaining a snapshot of your Ubuntu root
 
 ### Preparing the SD Card (one-time)
 
-1. Shrink the live root partition to make space:
-   sudo parted /dev/mmcblk0
-   # resizepart 2 <new-end>
-   Leave enough space for normal use, e.g. 8–16 GB.
+    sudo parted /dev/mmcblk0 --script resizepart 2 40GB
+    sudo parted /dev/mmcblk0 --script mkpart primary ext4 40GB 100%
+    sudo mkfs.ext4 /dev/mmcblk0p3 -L rootfs_backup
+    lsblk -f
 
-2. Create a new ext4 partition in the freed space:
-   sudo parted /dev/mmcblk0
-   # mkpart primary ext4 <start> 100%
-   sudo mkfs.ext4 /dev/mmcblk0p3 -L rootfs_backup
-
-3. Confirm partition layout:
-   lsblk -f
-   # Expect mmcblk0p2 (root) and mmcblk0p3 (rootfs_backup)
 
 ---
 
