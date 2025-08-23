@@ -1,5 +1,4 @@
 #!/bin/sh
-
 set -eu
 
 BACKUP_DEV="${BACKUP_DEV:-/dev/mmcblk0p3}"
@@ -16,13 +15,18 @@ ACTIVE_SRC="$(findmnt -no SOURCE / || true)"
 [ "$ACTIVE_SRC" != "$BACKUP_DEV" ] || { echo "backup device is current root. abort." >&2; exit 1; }
 
 mkdir -p "$MNT"
+
+cleanup() {
+  mountpoint -q "$MNT" && umount "$MNT" || true
+}
+trap cleanup EXIT INT TERM
+
 mount "$BACKUP_DEV" "$MNT"
 
 set --
 for p in $EXCLUDES; do set -- "$@" --exclude="$p"; done
 
 rsync -aAXH --delete --numeric-ids "$@" / "$MNT"/
-
 
 ROOT_SRC="$(findmnt -no SOURCE / || true)"
 BOOT_SRC="$(findmnt -no SOURCE /boot || true)"
@@ -35,5 +39,4 @@ date -u +"%Y-%m-%dT%H:%M:%SZ" > "$MNT/.snapshot_timestamp_utc"
 uname -a > "$MNT/.snapshot_uname"
 
 sync
-umount "$MNT"
 echo "snapshot -> $BACKUP_DEV complete"

@@ -1,13 +1,13 @@
 [Unit]
-Description=Auto-restore from backup partition and reboot
-DefaultDependencies=no
+Description=Rollback on backup root to restore live root, then switch back
+DefaultDependencies=yes
 After=local-fs.target
 ConditionPathExists=/boot/rollback.flag
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/rollback-on-backup.sh
-TimeoutStartSec=0
+RemainAfterExit=no
 
 [Install]
 WantedBy=multi-user.target

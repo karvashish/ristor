@@ -1,7 +1,4 @@
 #!/bin/sh
-
-
-
 set -eu
 
 BACKUP_DEV="${BACKUP_DEV:-/dev/mmcblk0p3}"
@@ -18,8 +15,16 @@ fi
 /usr/local/sbin/sd-restore.sh
 
 CMD="$(tr '\n' ' ' < "$BOOT_FILE")"
-CMD="$(printf '%s' "$CMD" | sed -E 's#root=[^ ]+#root='"$LIVE_DEV"'#')"
-printf '%s\n' "$CMD" > "$BOOT_FILE"
+case " $CMD " in
+  *" root="*) : ;;
+  *) echo "no root= in $BOOT_FILE" >&2; exit 1;;
+esac
+
+NEW="$(printf '%s' "$CMD" | sed -E 's#(^| )root=[^ ]+#\1root='"$LIVE_DEV"'#')"
+TMP="$(mktemp "${BOOT_FILE}.XXXX")"
+printf '%s\n' "$NEW" > "$TMP"
+sync
+mv -f "$TMP" "$BOOT_FILE"
 
 rm -f "$FLAG"
 sync

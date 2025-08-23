@@ -1,5 +1,4 @@
 #!/bin/sh
-
 set -eu
 
 LIVE_DEV="${LIVE_DEV:-/dev/mmcblk0p2}"
@@ -19,6 +18,13 @@ ACTIVE_SRC="$(findmnt -no SOURCE / || true)"
 [ "$ACTIVE_SRC" != "$LIVE_DEV" ] || { echo "refusing to overwrite mounted root ($LIVE_DEV). boot backup/other." >&2; exit 1; }
 
 mkdir -p "$LIVE" "$BACK"
+
+cleanup() {
+  mountpoint -q "$BACK" && umount "$BACK" || true
+  mountpoint -q "$LIVE" && umount "$LIVE" || true
+}
+trap cleanup EXIT INT TERM
+
 mount "$LIVE_DEV" "$LIVE"
 mount "$BACKUP_DEV" "$BACK"
 
@@ -28,7 +34,6 @@ set --
 for p in $EXCLUDES; do set -- "$@" --exclude="$p"; done
 
 rsync -aAXH --delete --numeric-ids "$@" "$BACK"/ "$LIVE"/
-
 
 BOOT_SPEC="$(awk '$2=="/boot"{print $1}' "$LIVE/etc/fstab" || true)"
 if [ -n "$BOOT_SPEC" ] && [ -d "$BACK/.boot" ]; then
@@ -48,6 +53,4 @@ if [ -n "$BOOT_SPEC" ] && [ -d "$BACK/.boot" ]; then
 fi
 
 sync
-umount "$BACK" || true
-umount "$LIVE" || true
 echo "restore -> $LIVE_DEV complete"
