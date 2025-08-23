@@ -1,0 +1,13 @@
+[Unit]
+Description=Auto-restore from backup partition and reboot
+DefaultDependencies=no
+After=local-fs.target
+ConditionPathExists=/boot/rollback.flag
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/rollback-on-backup.sh
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

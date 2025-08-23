@@ -1,0 +1,26 @@
+#!/bin/sh
+
+set -eu
+
+BACKUP_DEV="${BACKUP_DEV:-/dev/mmcblk0p3}"
+LIVE_DEV="${LIVE_DEV:-/dev/mmcblk0p2}"
+BOOT_FILE="${BOOT_FILE:-/boot/cmdline.txt}"
+FLAG="${FLAG:-/boot/rollback.flag}"
+
+[ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
+[ -b "$BACKUP_DEV" ] || { echo "backup dev not found" >&2; exit 1; }
+[ -b "$LIVE_DEV" ]   || { echo "live dev not found" >&2; exit 1; }
+[ -w "$BOOT_FILE" ]  || { echo "cannot write $BOOT_FILE" >&2; exit 1; }
+
+echo "creating rollback flag at $FLAG"
+echo "1" > "$FLAG"
+
+echo "switching next boot to backup root ($BACKUP_DEV)"
+
+CMD="$(tr '\n' ' ' < "$BOOT_FILE")"
+CMD="$(printf '%s' "$CMD" | sed -E 's#root=[^ ]+#root='"$BACKUP_DEV"'#')"
+printf '%s\n' "$CMD" > "$BOOT_FILE"
+
+sync
+echo "rebooting into backup to perform restore..."
+reboot
