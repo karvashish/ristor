@@ -32,6 +32,11 @@ ACTIVE_SRC="$(findmnt -no SOURCE / || true)"
 BACK_SRC="$(findmnt -no SOURCE "$MNT" || true)"
 [ "$ACTIVE_SRC" != "$BACK_SRC" ] || { echo "backup is current root. abort." >&2; exit 1; }
 
+echo "About to start snapshot: copy / to $MNT"
+printf "Type YES to proceed: "
+read ans
+[ "$ans" = "YES" ] || { echo "Aborted"; exit 1; }
+
 set --
 for p in $EXCLUDES; do set -- "$@" --exclude="$p"; done
 
