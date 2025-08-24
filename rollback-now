@@ -1,46 +1,17 @@
 #!/bin/sh
 set -eu
 
-BACKUP_DEV="${BACKUP_DEV:-/dev/mmcblk0p3}"
-LIVE_DEV="${LIVE_DEV:-/dev/mmcblk0p2}"
 BOOT_FILE="${BOOT_FILE:-/boot/cmdline.txt}"
 FLAG="${FLAG:-/boot/rollback.flag}"
-TMP=""
 
-[ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
-[ -b "$BACKUP_DEV" ] || { echo "backup dev not found" >&2; exit 1; }
-[ -b "$LIVE_DEV" ]   || { echo "live dev not found" >&2; exit 1; }
-[ -w "$BOOT_FILE" ]  || { echo "cannot write $BOOT_FILE" >&2; exit 1; }
+/usr/local/sbin/sd-restore.sh
 
-CHK_MNT="$(mktemp -d)"
-cleanup() {
-  [ -n "$TMP" ] && [ -f "$TMP" ] && sync && mv -f "$TMP" "$BOOT_FILE" || true
-  mountpoint -q "$CHK_MNT" && umount "$CHK_MNT" || true
-  rmdir "$CHK_MNT" || true
-}
-trap cleanup EXIT INT TERM
-
-mount "$BACKUP_DEV" "$CHK_MNT"
-[ -d "$CHK_MNT/etc" ] || { echo "backup partition missing rootfs" >&2; exit 1; }
-umount "$CHK_MNT"
-
-echo "creating rollback flag at $FLAG"
-echo "1" > "$FLAG"
-
-echo "switching next boot to backup root ($BACKUP_DEV)"
 CMD="$(tr '\n' ' ' < "$BOOT_FILE")"
 case " $CMD " in
   *" root="*) : ;;
   *) echo "no root= in $BOOT_FILE" >&2; exit 1;;
 esac
 
-NEW="$(printf '%s' "$CMD" | sed -E 's#(^| )root=[^ ]+#\1root='"$BACKUP_DEV"'#')"
-TMP="$(mktemp "${BOOT_FILE}.XXXX")"
-printf '%s\n' "$NEW" > "$TMP"
+rm -f "$FLAG"
 sync
-mv -f "$TMP" "$BOOT_FILE"
-TMP=""
-
-sync
-echo "rebooting into backup to perform restore..."
 reboot

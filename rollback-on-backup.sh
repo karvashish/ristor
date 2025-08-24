@@ -1,31 +1,39 @@
 #!/bin/sh
 set -eu
 
-BACKUP_DEV="${BACKUP_DEV:-/dev/mmcblk0p3}"
-LIVE_DEV="${LIVE_DEV:-/dev/mmcblk0p2}"
-BOOT_FILE="${BOOT_FILE:-/boot/cmdline.txt}"
-FLAG="${FLAG:-/boot/rollback.flag}"
+MNT="${MNT:-/mnt/backup}"
+
+EXCLUDES='
+/proc/* /sys/* /dev/* /run/* /tmp/* /lost+found /mnt/* /media/* /swapfile
+'
+
+[ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
 
 ACTIVE_SRC="$(findmnt -no SOURCE / || true)"
-if [ "$ACTIVE_SRC" != "$BACKUP_DEV" ]; then
-  echo "not on backup root, abort"; exit 0
+[ "$ACTIVE_SRC" != "$(findmnt -no SOURCE $MNT || true)" ] || { echo "backup is current root. abort." >&2; exit 1; }
+
+mkdir -p "$MNT"
+
+cleanup() {
+  mountpoint -q "$MNT" && umount "$MNT" || true
+}
+trap cleanup EXIT INT TERM
+
+mount /dev/sda1 "$MNT"
+
+set --
+for p in $EXCLUDES; do set -- "$@" --exclude="$p"; done
+
+rsync -aAXH --delete --numeric-ids "$@" / "$MNT"/
+
+BOOT_SRC="$(findmnt -no SOURCE /boot || true)"
+if [ -n "$BOOT_SRC" ]; then
+  mkdir -p "$MNT/.boot"
+  rsync -aH --delete /boot/ "$MNT/.boot/"
 fi
-[ -f "$FLAG" ] || { echo "no rollback flag, abort"; exit 0; }
 
-/usr/local/sbin/sd-restore.sh
+date -u +"%Y-%m-%dT%H:%M:%SZ" > "$MNT/.snapshot_timestamp_utc"
+uname -a > "$MNT/.snapshot_uname"
 
-CMD="$(tr '\n' ' ' < "$BOOT_FILE")"
-case " $CMD " in
-  *" root="*) : ;;
-  *) echo "no root= in $BOOT_FILE" >&2; exit 1;;
-esac
-
-NEW="$(printf '%s' "$CMD" | sed -E 's#(^| )root=[^ ]+#\1root='"$LIVE_DEV"'#')"
-TMP="$(mktemp "${BOOT_FILE}.XXXX")"
-printf '%s\n' "$NEW" > "$TMP"
 sync
-mv -f "$TMP" "$BOOT_FILE"
-
-rm -f "$FLAG"
-sync
-reboot
+echo "snapshot -> pendrive complete"
