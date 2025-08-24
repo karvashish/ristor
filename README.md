@@ -1,78 +1,93 @@
-### SD Snapshot + Auto Restore System
+# SD Snapshot + USB Auto Restore System
 
-This repository provides a system for maintaining a snapshot of your Ubuntu root filesystem on the same SD card and restoring it with a single command.
-
----
-
-### Features
-
-- Snapshot: Save the current state of your root filesystem into a backup partition.
-- Rollback: One command triggers a two-reboot cycle:
-  1. System boots from backup partition.
-  2. Backup automatically restores the live root.
-  3. System boots back into the restored live partition.
-- Self-contained: All logic is handled by installed scripts and a systemd service.
-- No external devices required: Both live and backup partitions reside on the same SD card.
+This repository provides a system for maintaining a snapshot of your Ubuntu root filesystem on a USB drive and restoring it to the SD card with a single command.
 
 ---
 
-### Requirements
+## Features
 
-- Ubuntu running on Raspberry Pi or ARM device.
-- SD card with at least two root partitions:
-  - /dev/mmcblk0p2 → live root
-  - /dev/mmcblk0p3 → backup root (ext4 formatted)
+* Snapshot: Save the current state of your root filesystem onto a USB pendrive.
+* Rollback: One command triggers a two-reboot cycle:
 
----
-
-### Preparing the SD Card (one-time)
-
-    sudo parted /dev/mmcblk0 --script resizepart 2 40GB
-    sudo parted /dev/mmcblk0 --script mkpart primary ext4 40GB 100%
-    sudo mkfs.ext4 /dev/mmcblk0p3 -L rootfs_backup
-    lsblk -f
-
+  1. System reboots with root on the USB.
+  2. USB environment automatically restores the snapshot back to the SD root.
+  3. System reboots again into the SD root.
+* Self-contained: Logic is handled by installed scripts and a systemd service.
+* No manual intervention: Once rollback is triggered, both reboots and restore happen automatically.
 
 ---
 
-### Installation
+## Requirements
+
+* Ubuntu running on Raspberry Pi or ARM device.
+* SD card with the normal live root partition (/dev/mmcblk0p2).
+* USB drive formatted as ext4 (labelled USBBackup):
+
+  * Holds the snapshot copy.
+  * Also used as temporary root when performing a rollback.
+
+---
+
+## Preparing the USB Drive (one-time)
+
+```
+sudo mkfs.ext4 /dev/sda1 -L USBBackup
+lsblk -f
+```
+
+Confirm /dev/sda1 is ext4 with label USBBackup.
+
+---
+
+## Installation
 
 Clone the repository and run the installer:
 
-   git clone <repo-url>
-   cd <repo-name>
-   chmod +x enable-and-install.sh
-   ./enable-and-install.sh
+```
+git clone <repo-url>
+cd <repo-name>
+chmod +x enable-and-install.sh
+./enable-and-install.sh
+```
 
 This copies all scripts into /usr/local/sbin and enables the systemd service.
-It does not create partitions — those must be prepared beforehand (see above).
 
 ---
 
-### Usage
+## Usage
 
-- Create snapshot (backup current root):
-     sudo sd-snapshot.sh
-  This copies the live root into the backup partition.
+### Create snapshot (backup current root to USB)
 
-- Restore (rollback):
-     sudo rollback-now
+```
+sudo sd-snapshot.sh
+```
 
-  Workflow:
-  - Sets rollback flag and switches root to the backup partition.
-  - Reboots into backup.
-  - Service runs, restoring backup → live.
-  - Switches root back to live and reboots.
-  - System is now restored to the last snapshot.
+This copies the live SD root and /boot into /mnt/backup on the USB.
+
+### Restore (rollback)
+
+```
+sudo rollback-now
+```
+
+Workflow:
+
+1. Sets rollback flag and switches /boot/cmdline.txt to boot from USB root.
+2. System reboots into USB.
+3. rollback-on-backup.service runs automatically:
+
+   * Restores snapshot from USB → SD root.
+   * Restores /boot if present.
+   * Switches /boot/cmdline.txt back to SD root.
+4. System reboots into SD.
+5. SD root is now restored to the snapshot state.
 
 ---
 
-### Notes
+## Notes
 
-- Snapshot can be taken anytime, no reboot required.
-- Rollback requires two automatic reboots.
-- If /boot is a separate partition, it is included in the snapshot and restore.
-- Excludes only ephemeral directories (/proc, /sys, /dev, /run, /tmp, /lost+found, mounts, and swapfile).
-- After restore, the system is “factory fresh” at the time of last snapshot.
-
----
+* Snapshots can be taken anytime while running from SD root.
+* Rollback always requires two automatic reboots.
+* Ephemeral directories (/proc, /sys, /dev, /run, /tmp, /lost+found, mounts, swapfile) are excluded.
+* After restore, the SD root matches exactly the snapshot stored on USB.
+* USB must remain plugged in for both snapshot and rollback operations.
