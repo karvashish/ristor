@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-LIVE="${LIVE:-/}"            # target root ("/" for in-place; e.g., "/mnt/target" when USB-booted)
-BACK="${BACK:-/mnt/backup}"  # mounted snapshot
+LIVE="${LIVE:-/}"
+BACK="${BACK:-/mnt/backup}"
 
 EXCLUDES='
 /proc
@@ -28,20 +28,16 @@ EXCLUDES='
 mkdir -p "$BACK"
 mountpoint -q "$BACK" || mount /dev/sda1 "$BACK"
 
-# Backup must look like a rootfs
 [ -d "$BACK/etc" ] || { echo "backup missing rootfs" >&2; exit 1; }
 
-# Safety: refuse if restoring from and to the same filesystem
 SRC_BACK="$(findmnt -no SOURCE "$BACK" || true)"
 SRC_LIVE="$(findmnt -no SOURCE "$LIVE" || true)"
 [ -n "$SRC_BACK" ] && [ -n "$SRC_LIVE" ] || { echo "cannot resolve mount sources" >&2; exit 1; }
 [ "$SRC_BACK" != "$SRC_LIVE" ] || { echo "backup and target are the same device. abort." >&2; exit 1; }
 
-# Build excludes
 set --
 for p in $EXCLUDES; do set -- "$@" --exclude="$p"; done
 
-# Restore root; stay on one filesystem; accept rsync code 24 as success
 set +e
 rsync -x -aAXH --delete --numeric-ids "$@" "$BACK"/ "$LIVE"/
 RC=$?
@@ -51,7 +47,6 @@ if [ "$RC" -ne 0 ] && [ "$RC" -ne 24 ]; then
   exit "$RC"
 fi
 
-# Restore /boot into the target's boot, not the live /boot
 if [ -d "$BACK/.boot" ]; then
   mkdir -p "$LIVE/boot"
   rsync -aH --delete "$BACK/.boot/" "$LIVE/boot/"

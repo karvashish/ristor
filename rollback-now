@@ -1,28 +1,22 @@
 #!/bin/sh
 set -eu
 
-# One-shot switch to USB root, then reboot.
-
 BOOT_FILE="${BOOT_FILE:-/boot/firmware/cmdline.txt}"
 FLAG="${FLAG:-/boot/firmware/rollback.flag}"
-USB_LABEL="${USB_LABEL:-USBBackup}"   # ext4 label of your USB root (sda1)
+USB_LABEL="${USB_LABEL:-USBBackup}"
 
 [ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
 
-# Current SD root PARTUUID
 SD_DEV="$(findmnt -no SOURCE /)"
 SD_UUID="$(blkid -s PARTUUID -o value "$SD_DEV")"
 
-# USB root PARTUUID (by label)
 USB_DEV="/dev/disk/by-label/$USB_LABEL"
 [ -b "$USB_DEV" ] || USB_DEV="$(blkid -L "$USB_LABEL" || true)"
 [ -n "$USB_DEV" ] || { echo "USB device with label $USB_LABEL not found" >&2; exit 1; }
 USB_UUID="$(blkid -s PARTUUID -o value "$USB_DEV")"
 
-# Write flag with both UUIDs
 printf 'SD_PARTUUID=%s\nUSB_PARTUUID=%s\n' "$SD_UUID" "$USB_UUID" > "$FLAG"
 
-# Switch root= in cmdline.txt to USB
 CMD="$(tr '\n' ' ' < "$BOOT_FILE")"
 case " $CMD " in *" root="* ) : ;; *) echo "no root= in $BOOT_FILE" >&2; exit 1;; esac
 NEW="$(printf '%s' "$CMD" | sed -E "s#root=[^ ]+#root=PARTUUID=$USB_UUID rootfstype=ext4#g")"
