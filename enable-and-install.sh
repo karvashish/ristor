@@ -2,7 +2,6 @@
 set -eu
 
 sudo install -m 0755 sd-snapshot.sh /usr/local/sbin/sd-snapshot.sh
-sudo install -m 0755 sd-restore.sh  /usr/local/sbin/sd-restore.sh
 sudo install -m 0755 rollback-now   /usr/local/sbin/rollback-now
 sudo install -m 0755 rollback-on-backup.sh /usr/local/sbin/rollback-on-backup.sh
 
