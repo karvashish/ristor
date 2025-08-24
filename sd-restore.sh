@@ -5,13 +5,20 @@ LIVE="${LIVE:-/}"            # target root ("/" for in-place; e.g., "/mnt/target
 BACK="${BACK:-/mnt/backup}"  # mounted snapshot
 
 EXCLUDES='
+/proc
 /proc/**
+/sys
 /sys/**
+/dev
 /dev/**
+/run
 /run/**
+/tmp
 /tmp/**
 /lost+found
+/mnt
 /mnt/**
+/media
 /media/**
 /swapfile
 '
@@ -34,9 +41,9 @@ SRC_LIVE="$(findmnt -no SOURCE "$LIVE" || true)"
 set --
 for p in $EXCLUDES; do set -- "$@" --exclude="$p"; done
 
-# Restore root; accept rsync code 24 (vanished files) as success
+# Restore root; stay on one filesystem; accept rsync code 24 as success
 set +e
-rsync -aAXH --delete --numeric-ids "$@" "$BACK"/ "$LIVE"/
+rsync -x -aAXH --delete --numeric-ids "$@" "$BACK"/ "$LIVE"/
 RC=$?
 set -e
 if [ "$RC" -ne 0 ] && [ "$RC" -ne 24 ]; then
