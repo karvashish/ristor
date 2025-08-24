@@ -4,15 +4,23 @@ set -eu
 MNT="${MNT:-/mnt/backup}"
 
 EXCLUDES='
-/proc/**
-/sys/**
-/dev/**
-/run/**
-/tmp/**
-/lost+found
-/mnt/**
-/media/**
-/swapfile
+proc
+proc/**
+sys
+sys/**
+dev
+dev/**
+run
+run/**
+tmp
+tmp/**
+lost+found
+mnt
+mnt/**
+media
+media/**
+swapfile
+boot
 '
 
 [ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
@@ -28,7 +36,7 @@ set --
 for p in $EXCLUDES; do set -- "$@" --exclude="$p"; done
 
 set +e
-rsync -aAXH --delete --numeric-ids "$@" / "$MNT"/
+rsync -x -aAXH --delete --numeric-ids "$@" / "$MNT"/
 RC=$?
 set -e
 [ "$RC" -eq 0 ] || [ "$RC" -eq 24 ] || { echo "rsync failed: $RC" >&2; exit "$RC"; }
