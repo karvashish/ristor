@@ -3,7 +3,7 @@ set -eu
 
 MNT="${MNT:-/mnt/backup}"
 
-# Broader excludes to avoid rsync statting volatile trees
+# Exclude volatile trees to prevent "vanished files"
 EXCLUDES='
 /proc/**
 /sys/**
@@ -20,11 +20,7 @@ EXCLUDES='
 
 mkdir -p "$MNT"
 
-cleanup() {
-  mountpoint -q "$MNT" && umount "$MNT" || true
-}
-trap cleanup EXIT INT TERM
-
+# Ensure backup is mounted; leave it mounted after run
 mountpoint -q "$MNT" || mount /dev/sda1 "$MNT"
 
 # Safety: refuse if backup device is the current root
@@ -36,7 +32,7 @@ BACK_SRC="$(findmnt -no SOURCE "$MNT" || true)"
 set --
 for p in $EXCLUDES; do set -- "$@" --exclude="$p"; done
 
-# Run rsync and explicitly accept exit code 24 (vanished files)
+# Rsync root -> backup; accept exit code 24 (vanished files)
 set +e
 rsync -aAXH --delete --numeric-ids "$@" / "$MNT"/
 RC=$?
@@ -46,7 +42,7 @@ if [ "$RC" -ne 0 ] && [ "$RC" -ne 24 ]; then
   exit "$RC"
 fi
 
-# Copy boot if present
+# Copy /boot if present
 BOOT_SRC="$(findmnt -no SOURCE /boot || true)"
 if [ -n "$BOOT_SRC" ]; then
   mkdir -p "$MNT/.boot"
