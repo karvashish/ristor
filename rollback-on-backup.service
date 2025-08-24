@@ -2,7 +2,7 @@
 Description=Rollback on backup root to restore live root, then switch back
 DefaultDependencies=yes
 After=local-fs.target
-ConditionPathExists=/boot/rollback.flag
+ConditionPathExists=/boot/firmware/rollback.flag
 
 [Service]
 Type=oneshot

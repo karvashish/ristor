@@ -5,8 +5,8 @@ set -eu
 
 MNT_BACK="${MNT_BACK:-/mnt/backup}"     # snapshot directory on the USB root
 MNT_TARGET="${MNT_TARGET:-/mnt/target}" # where we mount the SD root
-BOOT_FILE="${BOOT_FILE:-/boot/cmdline.txt}"
-FLAG="${FLAG:-/boot/rollback.flag}"
+BOOT_FILE="${BOOT_FILE:-/boot/firmware/cmdline.txt}"
+FLAG="${FLAG:-/boot/firmware/rollback.flag}"
 
 [ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
 [ -f "$FLAG" ] || exit 0

@@ -3,8 +3,8 @@ set -eu
 
 # One-shot switch to USB root, then reboot.
 
-BOOT_FILE="${BOOT_FILE:-/boot/cmdline.txt}"
-FLAG="${FLAG:-/boot/rollback.flag}"
+BOOT_FILE="${BOOT_FILE:-/boot/firmware/cmdline.txt}"
+FLAG="${FLAG:-/boot/firmware/rollback.flag}"
 USB_LABEL="${USB_LABEL:-USBBackup}"   # ext4 label of your USB root (sda1)
 
 [ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
