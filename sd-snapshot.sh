@@ -35,16 +35,18 @@ BACK_SRC="$(findmnt -no SOURCE "$MNT" || true)"
 set --
 for p in $EXCLUDES; do set -- "$@" --exclude="$p"; done
 
+echo "Starting snapshot: copying / to $MNT ..."
 set +e
-rsync -x -aAXH --delete --numeric-ids "$@" / "$MNT"/
+rsync -x -aAXH --delete --numeric-ids --info=progress2 "$@" / "$MNT"/
 RC=$?
 set -e
 [ "$RC" -eq 0 ] || [ "$RC" -eq 24 ] || { echo "rsync failed: $RC" >&2; exit "$RC"; }
 
+echo "Syncing /boot ..."
 mkdir -p "$MNT/.boot"
-rsync -aH --delete /boot/ "$MNT/.boot/"
+rsync -aH --delete --info=progress2 /boot/ "$MNT/.boot/"
 
 date -u +"%Y-%m-%dT%H:%M:%SZ" > "$MNT/.snapshot_timestamp_utc"
 uname -a > "$MNT/.snapshot_uname"
 sync
-echo "snapshot -> pendrive complete"
+echo "Snapshot -> pendrive complete at $MNT"
